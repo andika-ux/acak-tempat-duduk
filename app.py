@@ -1,65 +1,46 @@
 import streamlit as st
 import random
 
-# Layout tempat duduk: 4 baris × 12 kolom, dengan 35 kursi aktif
-layout_mask = [[1]*5 + [0] + [1]*3 + [1]*4 for _ in range(4)]
+st.set_page_config(page_title="Acak Tempat Duduk", layout="wide")
+st.title("Acak Tempat Duduk 5×8 (35 kursi)")
 
-def get_empty_layout():
-    return [[None if seat == 1 else -1 for seat in row] for row in layout_mask]
+rows = 5
+cols = 8
+total_slots = rows * cols  # 40 slot
+active_seats = 35          # kursi aktif
 
-def get_all_positions():
-    return [(r, c) for r in range(4) for c in range(12) if layout_mask[r][c] == 1]
+# Buat daftar indeks aktif (yang digunakan)
+# Ini berdasarkan urutan baris→kolom
+used_indices = [i for i in range(total_slots)]
+empty_indices = [35, 36, 37, 38, 39]  # posisi kosong (baris 5 kolom 4–8)
+for i in empty_indices:
+    used_indices.remove(i)
 
-def generate_layout(numbers):
-    positions = get_all_positions()
-    random.shuffle(positions)
-    layout = get_empty_layout()
-    for i, num in enumerate(numbers):
-        r, c = positions[i]
-        layout[r][c] = num
-    return layout
+# Simpan shuffle seats di session
+if "seats" not in st.session_state:
+    st.session_state.seats = list(range(1, active_seats + 1))
+    random.shuffle(st.session_state.seats)
 
-def get_position(layout, number):
-    for r in range(4):
-        for c in range(12):
-            if layout[r][c] == number:
-                return (r, c)
-    return None
+# Tombol acak ulang
+if st.button("Acak"):
+    random.shuffle(st.session_state.seats)
 
-def are_adjacent(pos1, pos2):
-    r1, c1 = pos1
-    r2, c2 = pos2
-    return abs(r1 - r2) + abs(c1 - c2) == 1
+# Tombol reset urutan
+if st.button("Reset"):
+    st.session_state.seats = list(range(1, active_seats + 1))
 
-def is_valid(new_layout, prev_layout):
-    for num in range(1, 36):
-        pos_new = get_position(new_layout, num)
-        pos_prev = get_position(prev_layout, num)
-        if pos_new and pos_prev and are_adjacent(pos_new, pos_prev):
-            return False
-    return True
+# Layout
+cols_widgets = st.columns(cols)
 
-# Streamlit App
-st.title("🎲 Acak Tempat Duduk Kelas")
-st.markdown("Setiap kali diacak, posisi siswa tidak akan berdampingan dengan posisi sebelumnya.")
-
-if 'prev_layout' not in st.session_state:
-    st.session_state.prev_layout = generate_layout(list(range(1, 36)))
-
-if st.button("🔄 Acak Tempat Duduk"):
-    for _ in range(1000):
-        new_layout = generate_layout(list(range(1, 36)))
-        if is_valid(new_layout, st.session_state.prev_layout):
-            st.session_state.prev_layout = new_layout
-            break
-
-layout = st.session_state.prev_layout
-
-# Tampilkan visualisasi layout
-for row in layout:
-    cols = st.columns(12)
-    for idx, seat in enumerate(row):
-        if seat == -1:
-            cols[idx].markdown(" ")
-        else:
-            cols[idx].button(str(seat), disabled=True)
+# Isi grid 5×8
+seat_idx = 0
+for row in range(rows):
+    for col in range(cols):
+        slot_number = row * cols + col
+        with cols_widgets[col]:
+            if slot_number in used_indices:
+                seat_number = st.session_state.seats[seat_idx]
+                st.button(str(seat_number), disabled=True, key=f"{row}-{col}")
+                seat_idx += 1
+            else:
+                st.markdown(" ")  # posisi kosong
